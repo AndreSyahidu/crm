@@ -8,6 +8,10 @@ use App\Http\Controllers\DealController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\TagController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\SegmentController;
+use App\Http\Controllers\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,7 +56,8 @@ Route::middleware('auth:api')->group(function () {
     // WhatsApp
     Route::get('/whatsapp/status', [WhatsAppController::class, 'status']);
     Route::get('/whatsapp/qr', [WhatsAppController::class, 'getQR']);
-    Route::post('/whatsapp/send', [WhatsAppController::class, 'sendMessage']);
+    Route::post('/whatsapp/send', [WhatsAppController::class, 'sendMessage'])
+        ->middleware('throttle:30,1'); // Rate limit: 30 per minute
     Route::get('/whatsapp/leads/{id}/messages', [WhatsAppController::class, 'messages']);
     Route::get('/whatsapp/leads/{id}/chat-history', [WhatsAppController::class, 'chatHistory']);
     Route::post('/whatsapp/messages/{id}/read', [WhatsAppController::class, 'markAsRead']);
@@ -72,6 +77,39 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/broadcasts/{id}/resume', [BroadcastController::class, 'resume']);
     Route::get('/broadcasts/{id}/stats', [BroadcastController::class, 'stats']);
 
+    // Tags
+    Route::get('/tags', [TagController::class, 'index']);
+    Route::post('/tags', [TagController::class, 'store']);
+    Route::put('/tags/{id}', [TagController::class, 'update']);
+    Route::delete('/tags/{id}', [TagController::class, 'destroy']);
+
+    // Tasks
+    Route::get('/tasks', [TaskController::class, 'index']);
+    Route::post('/tasks', [TaskController::class, 'store']);
+    Route::put('/tasks/{id}', [TaskController::class, 'update']);
+    Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
+    Route::post('/tasks/{id}/complete', [TaskController::class, 'complete']);
+    Route::get('/tasks/my-tasks', [TaskController::class, 'myTasks']);
+
+    // Segments
+    Route::get('/segments', [SegmentController::class, 'index']);
+    Route::post('/segments', [SegmentController::class, 'store']);
+    Route::get('/segments/{id}', [SegmentController::class, 'show']);
+    Route::put('/segments/{id}', [SegmentController::class, 'update']);
+    Route::delete('/segments/{id}', [SegmentController::class, 'destroy']);
+    Route::post('/segments/preview', [SegmentController::class, 'preview']);
+    Route::post('/segments/{id}/refresh', [SegmentController::class, 'refresh']);
+
+    // Users (Admin only)
+    Route::middleware('role:admin,manager')->group(function () {
+        Route::get('/users', [UserController::class, 'index']);
+        Route::post('/users', [UserController::class, 'store']);
+        Route::get('/users/{id}', [UserController::class, 'show']);
+        Route::put('/users/{id}', [UserController::class, 'update']);
+        Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    });
+    Route::get('/users/sales-reps', [UserController::class, 'salesReps']);
+
     // Analytics & Reports
     Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
     Route::get('/analytics/leads-by-source', [AnalyticsController::class, 'leadsBySource']);
@@ -88,9 +126,26 @@ Route::middleware('auth:api')->group(function () {
 
 });
 
-// Webhook for WhatsApp service (if needed)
+// Webhook for WhatsApp service (protected by secret key)
 Route::post('/webhooks/whatsapp', function (Request $request) {
-    // Handle webhook from WhatsApp service
-    // This could be used for real-time message updates
+    // Verify webhook secret
+    if ($request->header('X-Webhook-Secret') !== env('WEBHOOK_SECRET')) {
+        return response()->json(['error' => 'Unauthorized'], 401);
+    }
+
+    // Handle webhook event
+    $event = $request->input('event');
+    $data = $request->input('data');
+
+    // Process event based on type
+    switch ($event) {
+        case 'message_received':
+            // Already handled by WhatsApp service
+            break;
+        case 'message_ack':
+            // Update message status
+            break;
+    }
+
     return response()->json(['status' => 'received']);
 });
