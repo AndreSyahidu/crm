@@ -38,9 +38,33 @@
           </router-link>
         </li>
         <li class="sidebar-menu-item">
+          <router-link to="/tasks" class="sidebar-menu-link" active-class="active">
+            <i class="fas fa-tasks"></i>
+            <span>Tasks</span>
+          </router-link>
+        </li>
+        <li class="sidebar-menu-item">
+          <router-link to="/segments" class="sidebar-menu-link" active-class="active">
+            <i class="fas fa-layer-group"></i>
+            <span>Segments</span>
+          </router-link>
+        </li>
+        <li class="sidebar-menu-item">
+          <router-link to="/followups" class="sidebar-menu-link" active-class="active">
+            <i class="fas fa-redo"></i>
+            <span>Follow-ups</span>
+          </router-link>
+        </li>
+        <li class="sidebar-menu-item">
           <router-link to="/analytics" class="sidebar-menu-link" active-class="active">
             <i class="fas fa-chart-line"></i>
             <span>Analytics</span>
+          </router-link>
+        </li>
+        <li class="sidebar-menu-item">
+          <router-link to="/users" class="sidebar-menu-link" active-class="active">
+            <i class="fas fa-user-friends"></i>
+            <span>Users</span>
           </router-link>
         </li>
         <li class="sidebar-menu-item">

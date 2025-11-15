@@ -52,6 +52,26 @@ const routes = [
         path: '/settings',
         name: 'Settings',
         component: () => import('../views/Settings.vue')
+      },
+      {
+        path: '/tasks',
+        name: 'Tasks',
+        component: () => import('../views/Tasks.vue')
+      },
+      {
+        path: '/segments',
+        name: 'Segments',
+        component: () => import('../views/Segments.vue')
+      },
+      {
+        path: '/followups',
+        name: 'FollowUps',
+        component: () => import('../views/FollowUps.vue')
+      },
+      {
+        path: '/users',
+        name: 'Users',
+        component: () => import('../views/Users.vue')
       }
     ]
   }
