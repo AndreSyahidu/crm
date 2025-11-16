@@ -291,9 +291,11 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
+const { success, error } = useToast()
 
 // State
 const loading = ref(true)
@@ -309,9 +311,9 @@ const fetchLead = async () => {
   try {
     const response = await api.get(`/leads/${route.params.id}`)
     lead.value = response.data
-  } catch (error) {
-    console.error('Error fetching lead:', error)
-    alert('Lead not found')
+  } catch (err) {
+    console.error('Error fetching lead:', err)
+    error('Lead not found')
     router.push('/leads')
   } finally {
     loading.value = false
@@ -368,8 +370,8 @@ const updateScore = async () => {
 }
 
 const editLead = () => {
-  // TODO: Open edit modal
-  alert('Edit modal not implemented yet')
+  // Redirect to leads page with edit mode
+  router.push(`/leads?edit=${route.params.id}`)
 }
 
 const convertToCustomer = async () => {
@@ -377,31 +379,62 @@ const convertToCustomer = async () => {
   try {
     await api.post(`/leads/${route.params.id}/convert`)
     await fetchLead()
-    alert('Lead converted successfully!')
-  } catch (error) {
-    console.error('Error converting lead:', error)
-    alert('Failed to convert lead')
+    success('Lead converted successfully!')
+  } catch (err) {
+    console.error('Error converting lead:', err)
+    error('Failed to convert lead')
   }
 }
 
-const addMilestone = () => {
-  // TODO: Open milestone modal
-  alert('Add milestone modal not implemented yet')
+const addMilestone = async () => {
+  const title = prompt('Milestone title:')
+  if (!title) return
+
+  const description = prompt('Milestone description (optional):') || ''
+
+  try {
+    await api.post(`/leads/${route.params.id}/milestones`, {
+      title,
+      description,
+      color: '#007bff'
+    })
+    await fetchMilestones()
+    success('Milestone added successfully!')
+  } catch (err) {
+    console.error('Error adding milestone:', err)
+    error('Failed to add milestone')
+  }
 }
 
-const logInteraction = () => {
-  // TODO: Open interaction modal
-  alert('Log interaction modal not implemented yet')
+const logInteraction = async () => {
+  const type = prompt('Interaction type (call/email/meeting/note/whatsapp):')
+  if (!type) return
+
+  const notes = prompt('Interaction notes:')
+  if (!notes) return
+
+  try {
+    await api.post(`/interactions`, {
+      lead_id: route.params.id,
+      type,
+      notes
+    })
+    await fetchInteractions()
+    success('Interaction logged successfully!')
+  } catch (err) {
+    console.error('Error logging interaction:', err)
+    error('Failed to log interaction')
+  }
 }
 
 const manageTags = () => {
-  // TODO: Open tags modal
-  alert('Manage tags modal not implemented yet')
+  // Redirect to leads page to manage tags
+  router.push(`/leads?tags=${route.params.id}`)
 }
 
 const createTask = () => {
-  // TODO: Open task modal
-  alert('Create task modal not implemented yet')
+  // Redirect to tasks page with lead pre-filled
+  router.push(`/tasks?lead=${route.params.id}`)
 }
 
 const toggleTask = async (task) => {
