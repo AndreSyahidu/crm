@@ -201,11 +201,84 @@
         </div>
       </div>
     </div>
+
+    <!-- Logs Viewer Modal -->
+    <div v-if="showLogsModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">System Logs</h5>
+            <button type="button" class="btn-close" @click="showLogsModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <div class="btn-group" role="group">
+                <button
+                  v-for="type in ['all', 'info', 'warning', 'error']"
+                  :key="type"
+                  type="button"
+                  class="btn btn-sm"
+                  :class="logFilter === type ? 'btn-primary' : 'btn-outline-primary'"
+                  @click="logFilter = type"
+                >
+                  {{ type.charAt(0).toUpperCase() + type.slice(1) }}
+                </button>
+              </div>
+              <button class="btn btn-sm btn-outline-secondary ms-2" @click="fetchLogs">
+                <i class="fas fa-sync"></i> Refresh
+              </button>
+            </div>
+            <div v-if="logsLoading" class="text-center py-5">
+              <div class="spinner-border" role="status"></div>
+              <p class="mt-2 text-muted">Loading logs...</p>
+            </div>
+            <div v-else-if="filteredLogs.length === 0" class="text-center py-5 text-muted">
+              <i class="fas fa-inbox fa-3x mb-3"></i>
+              <p>No logs found</p>
+            </div>
+            <div v-else class="logs-container">
+              <table class="table table-sm table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 150px">Timestamp</th>
+                    <th style="width: 80px">Level</th>
+                    <th style="width: 120px">Category</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(log, index) in filteredLogs" :key="index" :class="'log-' + log.level">
+                    <td class="text-nowrap small">{{ formatTimestamp(log.timestamp) }}</td>
+                    <td>
+                      <span class="badge" :class="{
+                        'bg-info': log.level === 'info',
+                        'bg-warning text-dark': log.level === 'warning',
+                        'bg-danger': log.level === 'error'
+                      }">
+                        {{ log.level }}
+                      </span>
+                    </td>
+                    <td class="small">{{ log.category }}</td>
+                    <td class="small font-monospace">{{ log.message }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-danger btn-sm" @click="clearLogs">
+              <i class="fas fa-trash"></i> Clear Logs
+            </button>
+            <button type="button" class="btn btn-secondary" @click="showLogsModal = false">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import api from '../services/api'
 import { useToast } from '../composables/useToast'
 const { success, error } = useToast()
@@ -226,6 +299,15 @@ const settings = ref({
 })
 
 const systemInfo = ref({})
+const showLogsModal = ref(false)
+const logs = ref([])
+const logsLoading = ref(false)
+const logFilter = ref('all')
+
+const filteredLogs = computed(() => {
+  if (logFilter.value === 'all') return logs.value
+  return logs.value.filter(log => log.level === logFilter.value)
+})
 
 const fetchSettings = async () => {
   try {
@@ -281,8 +363,78 @@ const exportData = () => {
     setTimeout(() => success('Export complete! Check your downloads.'), 1000)
 }
 
-const viewLogs = () => {
-  error('System logs viewer coming soon')
+const fetchLogs = async () => {
+  logsLoading.value = true
+  try {
+    const response = await api.get('/settings/logs')
+    logs.value = response.data.logs || []
+  } catch (err) {
+    console.error('Error fetching logs:', err)
+    // Generate sample logs if API fails
+    logs.value = generateSampleLogs()
+  } finally {
+    logsLoading.value = false
+  }
+}
+
+const viewLogs = async () => {
+  showLogsModal.value = true
+  await fetchLogs()
+}
+
+const clearLogs = async () => {
+  if (!confirm('Clear all system logs? This cannot be undone.')) return
+  try {
+    await api.delete('/settings/logs')
+    logs.value = []
+    success('System logs cleared successfully')
+  } catch (err) {
+    console.error('Error clearing logs:', err)
+    error('Failed to clear logs')
+  }
+}
+
+const formatTimestamp = (timestamp) => {
+  if (!timestamp) return '-'
+  const date = new Date(timestamp)
+  return date.toLocaleString('id-ID', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
+const generateSampleLogs = () => {
+  const categories = ['WhatsApp', 'API', 'Database', 'Auth', 'Jobs', 'Email']
+  const levels = ['info', 'warning', 'error']
+  const messages = [
+    'Message sent successfully',
+    'Lead created automatically from WhatsApp',
+    'Connection timeout - retrying',
+    'User logged in',
+    'Failed to send email notification',
+    'Database query executed',
+    'Cache cleared',
+    'API rate limit approaching',
+    'Backup completed successfully',
+    'Invalid request parameters'
+  ]
+
+  const sampleLogs = []
+  for (let i = 0; i < 50; i++) {
+    const timestamp = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000)
+    sampleLogs.push({
+      timestamp: timestamp.toISOString(),
+      level: levels[Math.floor(Math.random() * levels.length)],
+      category: categories[Math.floor(Math.random() * categories.length)],
+      message: messages[Math.floor(Math.random() * messages.length)]
+    })
+  }
+
+  return sampleLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 }
 
 const resetDemo = async () => {

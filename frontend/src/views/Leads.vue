@@ -383,9 +383,65 @@ const deleteLead = async (id) => {
   }
 }
 
-const exportLeads = () => {
-  // Implement export functionality
-  alert('Export feature coming soon!')
+const exportLeads = async () => {
+  try {
+    // Fetch all leads for export (without pagination)
+    const response = await api.get('/leads', {
+      params: {
+        ...filters.value,
+        per_page: 10000 // Get all leads
+      }
+    })
+
+    const leadsData = response.data.data || []
+
+    if (leadsData.length === 0) {
+      error('No leads to export')
+      return
+    }
+
+    // Create CSV content
+    let csv = 'WhatsApp CRM - Leads Export\n\n'
+    csv += `Export Date: ${new Date().toLocaleString('id-ID')}\n`
+    csv += `Total Leads: ${leadsData.length}\n\n`
+
+    // Headers
+    csv += 'ID,Name,Email,Phone,Company,Status,Source,Value,Assigned To,Created At,Last Contact\n'
+
+    // Data rows
+    leadsData.forEach(lead => {
+      const row = [
+        lead.id,
+        `"${lead.name || ''}"`,
+        lead.email || '',
+        lead.phone || '',
+        `"${lead.company || ''}"`,
+        lead.status || '',
+        lead.source || '',
+        lead.estimated_value || 0,
+        `"${lead.assigned_user?.name || 'Unassigned'}"`,
+        lead.created_at ? new Date(lead.created_at).toLocaleDateString('id-ID') : '',
+        lead.last_contact_at ? new Date(lead.last_contact_at).toLocaleDateString('id-ID') : 'Never'
+      ]
+      csv += row.join(',') + '\n'
+    })
+
+    // Create and download file
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `leads-export-${Date.now()}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    success(`Successfully exported ${leadsData.length} leads`)
+  } catch (err) {
+    console.error('Export error:', err)
+    error('Failed to export leads: ' + (err.response?.data?.message || err.message))
+  }
 }
 
 onMounted(() => {

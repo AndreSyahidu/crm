@@ -74,8 +74,8 @@ class SendDailyRecap extends Command
                         ->count(),
                 ];
 
-                // TODO: Implement email sending
-                // Mail::to($user->email)->send(new DailyRecapMail($stats, $userStats));
+                // Send daily recap email
+                Mail::to($user->email)->send(new \App\Mail\DailyRecapMail($stats, $userStats));
 
                 $this->info("Sent recap to {$user->email}");
             } catch (\Exception $e) {
