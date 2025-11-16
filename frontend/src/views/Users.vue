@@ -115,6 +115,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
+const { success, error } = useToast()
 import { Modal } from 'bootstrap'
 import { useAuthStore } from '../stores/auth'
 
@@ -178,7 +180,7 @@ const saveUser = async () => {
     await fetchUsers()
   } catch (error) {
     console.error('Error:', error)
-    alert('Failed to save user')
+    error('Failed to save user')
   }
 }
 

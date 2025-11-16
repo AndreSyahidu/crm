@@ -230,6 +230,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
+const { success, error } = useToast()
 
 const leads = ref([])
 const users = ref([])

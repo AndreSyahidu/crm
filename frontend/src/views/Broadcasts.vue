@@ -325,6 +325,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
+const { success, error } = useToast()
 import { Modal } from 'bootstrap'
 
 // State
@@ -371,7 +373,7 @@ const fetchCampaigns = async (page = 1) => {
       per_page: response.data.per_page,
       total: response.data.total
     }
-  } catch (error) {
+  } catch (err) {
     console.error('Error fetching campaigns:', error)
   } finally {
     loading.value = false
@@ -382,7 +384,7 @@ const fetchSegments = async () => {
   try {
     const response = await api.get('/segments')
     segments.value = response.data
-  } catch (error) {
+  } catch (err) {
     console.error('Error fetching segments:', error)
   }
 }
@@ -391,7 +393,7 @@ const fetchStats = async () => {
   try {
     const response = await api.get('/broadcasts/stats')
     stats.value = response.data
-  } catch (error) {
+  } catch (err) {
     console.error('Error fetching stats:', error)
   }
 }
@@ -433,9 +435,9 @@ const saveCampaign = async () => {
     campaignModalInstance.hide()
     await fetchCampaigns()
     await fetchStats()
-  } catch (error) {
+  } catch (err) {
     console.error('Error saving campaign:', error)
-    alert('Failed to save campaign: ' + (error.response?.data?.message || error.message))
+    error('Failed to save campaign: ' + (err.response?.data?.message || err.message))
   } finally {
     saving.value = false
   }
@@ -449,7 +451,7 @@ const previewRecipients = async () => {
   try {
     const response = await api.get(`/broadcasts/preview/${campaignForm.value.segment_id}`)
     recipientCount.value = response.data.count
-  } catch (error) {
+  } catch (err) {
     console.error('Error previewing recipients:', error)
   }
 }
@@ -462,9 +464,9 @@ const startCampaign = async (campaign) => {
     await api.post(`/broadcasts/${campaign.id}/start`)
     await fetchCampaigns()
     await fetchStats()
-  } catch (error) {
-    console.error('Error starting campaign:', error)
-    alert('Failed to start campaign')
+  } catch (err) {
+    console.error('Error starting campaign:', err)
+    error('Failed to start campaign')
   }
 }
 
@@ -472,7 +474,7 @@ const pauseCampaign = async (campaign) => {
   try {
     await api.post(`/broadcasts/${campaign.id}/pause`)
     await fetchCampaigns()
-  } catch (error) {
+  } catch (err) {
     console.error('Error pausing campaign:', error)
   }
 }
@@ -481,7 +483,7 @@ const resumeCampaign = async (campaign) => {
   try {
     await api.post(`/broadcasts/${campaign.id}/resume`)
     await fetchCampaigns()
-  } catch (error) {
+  } catch (err) {
     console.error('Error resuming campaign:', error)
   }
 }
@@ -490,7 +492,7 @@ const duplicateCampaign = async (campaign) => {
   try {
     await api.post(`/broadcasts/${campaign.id}/duplicate`)
     await fetchCampaigns()
-  } catch (error) {
+  } catch (err) {
     console.error('Error duplicating campaign:', error)
   }
 }
@@ -501,7 +503,7 @@ const deleteCampaign = async (campaign) => {
     await api.delete(`/broadcasts/${campaign.id}`)
     await fetchCampaigns()
     await fetchStats()
-  } catch (error) {
+  } catch (err) {
     console.error('Error deleting campaign:', error)
   }
 }

@@ -248,6 +248,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
+const { success, error } = useToast()
 import { Modal } from 'bootstrap'
 
 const router = useRouter()
@@ -345,7 +347,7 @@ const handleDrop = async (event, newStageId) => {
     await fetchPipeline()
   } catch (error) {
     console.error('Error moving deal:', error)
-    alert('Failed to move deal')
+    error('Failed to move deal')
   }
 }
 
@@ -383,7 +385,7 @@ const saveDeal = async () => {
     await fetchPipeline()
   } catch (error) {
     console.error('Error saving deal:', error)
-    alert('Failed to save deal')
+    error('Failed to save deal')
   } finally {
     saving.value = false
   }

@@ -226,6 +226,8 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
+const { success, error } = useToast()
 import { Modal } from 'bootstrap'
 
 const router = useRouter()
@@ -351,7 +353,7 @@ const sendMessage = async () => {
     scrollToBottom()
   } catch (error) {
     console.error('Error sending message:', error)
-    alert('Failed to send message: ' + (error.response?.data?.error || error.message))
+    error('Failed to send message: ' + (err.response?.data?.error || err.message))
   } finally {
     sending.value = false
   }
@@ -374,10 +376,10 @@ const createLeadFromChat = async () => {
       status: 'new'
     })
     selectedChat.value.lead = response.data
-    alert('Lead created successfully!')
+    success('Lead created successfully!')
   } catch (error) {
     console.error('Error creating lead:', error)
-    alert('Failed to create lead')
+    error('Failed to create lead')
   }
 }
 

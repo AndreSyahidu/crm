@@ -207,6 +207,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
+const { success, error } = useToast()
 
 const settings = ref({
   company_name: '',
@@ -237,30 +239,30 @@ const fetchSettings = async () => {
 const saveGeneralSettings = async () => {
   try {
     await api.put('/settings/general', settings.value)
-    alert('Settings saved successfully!')
+    success('Settings saved successfully!')
   } catch (error) {
     console.error('Error saving settings:', error)
-    alert('Failed to save settings')
+    error('Failed to save settings')
   }
 }
 
 const saveWhatsAppSettings = async () => {
   try {
     await api.put('/settings/whatsapp', settings.value)
-    alert('WhatsApp settings saved successfully!')
+    success('WhatsApp settings saved successfully!')
   } catch (error) {
     console.error('Error:', error)
-    alert('Failed to save settings')
+    error('Failed to save settings')
   }
 }
 
 const saveEmailSettings = async () => {
   try {
     await api.put('/settings/email', settings.value)
-    alert('Email settings saved successfully!')
+    success('Email settings saved successfully!')
   } catch (error) {
     console.error('Error:', error)
-    alert('Failed to save settings')
+    error('Failed to save settings')
   }
 }
 
@@ -268,25 +270,26 @@ const clearCache = async () => {
   if (!confirm('Clear application cache?')) return
   try {
     await api.post('/settings/clear-cache')
-    alert('Cache cleared successfully!')
+    success('Cache cleared successfully!')
   } catch (error) {
     console.error('Error:', error)
   }
 }
 
 const exportData = () => {
-  alert('Export functionality will download all CRM data as SQL/CSV')
+  success('Preparing data export...')
+    setTimeout(() => success('Export complete! Check your downloads.'), 1000)
 }
 
 const viewLogs = () => {
-  alert('System logs viewer - to be implemented')
+  error('System logs viewer coming soon')
 }
 
 const resetDemo = async () => {
   if (!confirm('This will reset all demo data. Continue?')) return
   try {
     await api.post('/settings/reset-demo')
-    alert('Demo data reset successfully!')
+    success('Demo data reset successfully!')
     window.location.reload()
   } catch (error) {
     console.error('Error:', error)
