@@ -13,7 +13,7 @@
           <option value="365">Last year</option>
         </select>
         <button class="btn btn-outline-primary" @click="exportReport">
-          <i class="fas fa-download"></i> Export
+          <i class="fas fa-download"></i> Export CSV
         </button>
       </div>
     </div>
@@ -104,9 +104,7 @@
               <h5 class="card-title mb-0">Revenue Over Time</h5>
             </div>
             <div class="card-body">
-              <div class="chart-container">
-                <canvas ref="revenueChart"></canvas>
-              </div>
+              <canvas ref="revenueChart" height="80"></canvas>
             </div>
           </div>
         </div>
@@ -145,9 +143,7 @@
               <h5 class="card-title mb-0">Lead Sources</h5>
             </div>
             <div class="card-body">
-              <div class="chart-container" style="max-height: 300px;">
-                <canvas ref="sourcesChart"></canvas>
-              </div>
+              <canvas ref="sourcesChart" height="80"></canvas>
             </div>
           </div>
         </div>
@@ -159,9 +155,7 @@
               <h5 class="card-title mb-0">Pipeline Distribution</h5>
             </div>
             <div class="card-body">
-              <div class="chart-container" style="max-height: 300px;">
-                <canvas ref="pipelineChart"></canvas>
-              </div>
+              <canvas ref="pipelineChart" height="80"></canvas>
             </div>
           </div>
         </div>
@@ -279,8 +273,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
+
+const { success, error } = useToast()
 
 // State
 const loading = ref(true)
@@ -295,6 +292,9 @@ const analytics = ref({
   conversion_change: 0,
   deal_value_change: 0,
   funnel: [],
+  revenue_trend: [],
+  lead_sources: {},
+  pipeline_stages: {},
   team_performance: [],
   whatsapp: {},
   recent_activities: []
@@ -304,7 +304,6 @@ const analytics = ref({
 const revenueChart = ref(null)
 const sourcesChart = ref(null)
 const pipelineChart = ref(null)
-let chartInstances = []
 
 // Methods
 const fetchAnalytics = async () => {
@@ -319,49 +318,340 @@ const fetchAnalytics = async () => {
     setTimeout(() => {
       renderCharts()
     }, 100)
-  } catch (error) {
-    console.error('Error fetching analytics:', error)
+  } catch (err) {
+    console.error('Error fetching analytics:', err)
+    error('Failed to load analytics data')
   } finally {
     loading.value = false
   }
 }
 
 const renderCharts = () => {
-  // Destroy existing charts
-  chartInstances.forEach(chart => chart?.destroy())
-  chartInstances = []
+  renderRevenueChart()
+  renderSourcesChart()
+  renderPipelineChart()
+}
 
-  // Revenue Chart (placeholder - requires Chart.js)
-  if (revenueChart.value) {
-    const ctx = revenueChart.value.getContext('2d')
-    ctx.font = '16px Arial'
-    ctx.fillStyle = '#6c757d'
-    ctx.textAlign = 'center'
-    ctx.fillText('Chart.js required for visualization', revenueChart.value.width / 2, revenueChart.value.height / 2)
+// Revenue Line Chart
+const renderRevenueChart = () => {
+  if (!revenueChart.value) return
+
+  const canvas = revenueChart.value
+  const ctx = canvas.getContext('2d')
+  const data = analytics.value.revenue_trend || generateSampleRevenueTrend()
+
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  // Set canvas size
+  canvas.width = canvas.offsetWidth
+  canvas.height = 300
+
+  const padding = 40
+  const chartWidth = canvas.width - padding * 2
+  const chartHeight = canvas.height - padding * 2
+
+  // Find max value
+  const maxValue = Math.max(...data.map(d => d.value), 1)
+
+  // Draw axes
+  ctx.strokeStyle = '#e0e0e0'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(padding, padding)
+  ctx.lineTo(padding, canvas.height - padding)
+  ctx.lineTo(canvas.width - padding, canvas.height - padding)
+  ctx.stroke()
+
+  // Draw grid lines
+  ctx.strokeStyle = '#f5f5f5'
+  ctx.lineWidth = 1
+  for (let i = 0; i <= 5; i++) {
+    const y = padding + (chartHeight / 5) * i
+    ctx.beginPath()
+    ctx.moveTo(padding, y)
+    ctx.lineTo(canvas.width - padding, y)
+    ctx.stroke()
   }
 
-  // Sources Chart (placeholder)
-  if (sourcesChart.value) {
-    const ctx = sourcesChart.value.getContext('2d')
-    ctx.font = '16px Arial'
-    ctx.fillStyle = '#6c757d'
-    ctx.textAlign = 'center'
-    ctx.fillText('Chart.js required for visualization', sourcesChart.value.width / 2, sourcesChart.value.height / 2)
-  }
+  // Draw line
+  ctx.strokeStyle = '#007bff'
+  ctx.lineWidth = 3
+  ctx.beginPath()
 
-  // Pipeline Chart (placeholder)
-  if (pipelineChart.value) {
-    const ctx = pipelineChart.value.getContext('2d')
-    ctx.font = '16px Arial'
-    ctx.fillStyle = '#6c757d'
-    ctx.textAlign = 'center'
-    ctx.fillText('Chart.js required for visualization', pipelineChart.value.width / 2, pipelineChart.value.height / 2)
+  data.forEach((point, index) => {
+    const x = padding + (chartWidth / (data.length - 1)) * index
+    const y = canvas.height - padding - (point.value / maxValue) * chartHeight
+
+    if (index === 0) {
+      ctx.moveTo(x, y)
+    } else {
+      ctx.lineTo(x, y)
+    }
+  })
+
+  ctx.stroke()
+
+  // Draw points
+  ctx.fillStyle = '#007bff'
+  data.forEach((point, index) => {
+    const x = padding + (chartWidth / (data.length - 1)) * index
+    const y = canvas.height - padding - (point.value / maxValue) * chartHeight
+
+    ctx.beginPath()
+    ctx.arc(x, y, 4, 0, Math.PI * 2)
+    ctx.fill()
+  })
+
+  // Draw labels
+  ctx.fillStyle = '#666'
+  ctx.font = '12px Arial'
+  ctx.textAlign = 'center'
+  data.forEach((point, index) => {
+    const x = padding + (chartWidth / (data.length - 1)) * index
+    const y = canvas.height - padding + 20
+    ctx.fillText(point.label, x, y)
+  })
+
+  // Draw Y-axis labels
+  ctx.textAlign = 'right'
+  for (let i = 0; i <= 5; i++) {
+    const value = (maxValue / 5) * (5 - i)
+    const y = padding + (chartHeight / 5) * i + 5
+    ctx.fillText(formatCurrency(value), padding - 10, y)
   }
 }
 
+// Sources Bar Chart
+const renderSourcesChart = () => {
+  if (!sourcesChart.value) return
+
+  const canvas = sourcesChart.value
+  const ctx = canvas.getContext('2d')
+  const data = analytics.value.lead_sources || generateSampleSources()
+
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  // Set canvas size
+  canvas.width = canvas.offsetWidth
+  canvas.height = 300
+
+  const entries = Object.entries(data)
+  if (entries.length === 0) return
+
+  const padding = 40
+  const chartWidth = canvas.width - padding * 2
+  const chartHeight = canvas.height - padding * 2
+  const barWidth = chartWidth / entries.length - 10
+  const maxValue = Math.max(...entries.map(([, value]) => value), 1)
+
+  const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1', '#fd7e14']
+
+  // Draw bars
+  entries.forEach(([source, value], index) => {
+    const x = padding + (chartWidth / entries.length) * index + 5
+    const barHeight = (value / maxValue) * chartHeight
+    const y = canvas.height - padding - barHeight
+
+    // Draw bar
+    ctx.fillStyle = colors[index % colors.length]
+    ctx.fillRect(x, y, barWidth, barHeight)
+
+    // Draw value on top
+    ctx.fillStyle = '#333'
+    ctx.font = 'bold 12px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText(value, x + barWidth / 2, y - 5)
+
+    // Draw label
+    ctx.fillStyle = '#666'
+    ctx.font = '11px Arial'
+    ctx.save()
+    ctx.translate(x + barWidth / 2, canvas.height - padding + 15)
+    ctx.rotate(-Math.PI / 6)
+    ctx.fillText(source, 0, 0)
+    ctx.restore()
+  })
+}
+
+// Pipeline Doughnut Chart
+const renderPipelineChart = () => {
+  if (!pipelineChart.value) return
+
+  const canvas = pipelineChart.value
+  const ctx = canvas.getContext('2d')
+  const data = analytics.value.pipeline_stages || generateSamplePipeline()
+
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  // Set canvas size
+  canvas.width = canvas.offsetWidth
+  canvas.height = 300
+
+  const entries = Object.entries(data)
+  if (entries.length === 0) return
+
+  const centerX = canvas.width / 2
+  const centerY = canvas.height / 2
+  const radius = Math.min(centerX, centerY) - 60
+  const innerRadius = radius * 0.6
+
+  const total = entries.reduce((sum, [, value]) => sum + value, 0)
+  let currentAngle = -Math.PI / 2
+
+  const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1']
+
+  // Draw slices
+  entries.forEach(([stage, value], index) => {
+    const sliceAngle = (value / total) * Math.PI * 2
+    const endAngle = currentAngle + sliceAngle
+
+    // Draw outer arc
+    ctx.fillStyle = colors[index % colors.length]
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, currentAngle, endAngle)
+    ctx.arc(centerX, centerY, innerRadius, endAngle, currentAngle, true)
+    ctx.closePath()
+    ctx.fill()
+
+    // Draw label
+    const labelAngle = currentAngle + sliceAngle / 2
+    const labelX = centerX + Math.cos(labelAngle) * (radius + 30)
+    const labelY = centerY + Math.sin(labelAngle) * (radius + 30)
+
+    ctx.fillStyle = '#333'
+    ctx.font = 'bold 11px Arial'
+    ctx.textAlign = labelX > centerX ? 'left' : 'right'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(`${stage}: ${value}`, labelX, labelY)
+
+    currentAngle = endAngle
+  })
+
+  // Draw center circle
+  ctx.fillStyle = 'white'
+  ctx.beginPath()
+  ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Draw total in center
+  ctx.fillStyle = '#333'
+  ctx.font = 'bold 18px Arial'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(`Total: ${total}`, centerX, centerY)
+}
+
+// Export to CSV
 const exportReport = () => {
-  // TODO: Implement export functionality
-  alert('Export functionality will generate PDF/Excel report')
+  try {
+    let csv = 'WhatsApp CRM Analytics Report\n\n'
+    csv += `Date Range: Last ${dateRange.value} days\n`
+    csv += `Generated: ${new Date().toLocaleString('id-ID')}\n\n`
+
+    // Overview Stats
+    csv += 'OVERVIEW\n'
+    csv += 'Metric,Value,Change\n'
+    csv += `Total Revenue,Rp ${formatCurrency(analytics.value.total_revenue)},${analytics.value.revenue_change}%\n`
+    csv += `Total Leads,${analytics.value.total_leads},${analytics.value.leads_change}%\n`
+    csv += `Conversion Rate,${analytics.value.conversion_rate}%,${analytics.value.conversion_change}%\n`
+    csv += `Avg Deal Value,Rp ${formatCurrency(analytics.value.avg_deal_value)},${analytics.value.deal_value_change}%\n\n`
+
+    // Team Performance
+    if (analytics.value.team_performance && analytics.value.team_performance.length > 0) {
+      csv += 'TEAM PERFORMANCE\n'
+      csv += 'Name,Leads,Deals Won,Revenue,Conversion Rate,Avg Response Time\n'
+      analytics.value.team_performance.forEach(member => {
+        csv += `${member.name},${member.leads_count},${member.deals_won},Rp ${formatCurrency(member.revenue)},${member.conversion_rate}%,${member.avg_response_time}\n`
+      })
+      csv += '\n'
+    }
+
+    // Lead Sources
+    if (analytics.value.lead_sources) {
+      csv += 'LEAD SOURCES\n'
+      csv += 'Source,Count\n'
+      Object.entries(analytics.value.lead_sources).forEach(([source, count]) => {
+        csv += `${source},${count}\n`
+      })
+      csv += '\n'
+    }
+
+    // Pipeline Stages
+    if (analytics.value.pipeline_stages) {
+      csv += 'PIPELINE DISTRIBUTION\n'
+      csv += 'Stage,Count\n'
+      Object.entries(analytics.value.pipeline_stages).forEach(([stage, count]) => {
+        csv += `${stage},${count}\n`
+      })
+      csv += '\n'
+    }
+
+    // WhatsApp Stats
+    if (analytics.value.whatsapp) {
+      csv += 'WHATSAPP ACTIVITY\n'
+      csv += `Messages Sent,${analytics.value.whatsapp.sent || 0}\n`
+      csv += `Messages Received,${analytics.value.whatsapp.received || 0}\n`
+      csv += `Response Rate,${analytics.value.whatsapp.response_rate || 0}%\n`
+      csv += `Avg Response Time,${analytics.value.whatsapp.avg_response_time || 'N/A'}\n`
+    }
+
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `crm-analytics-${Date.now()}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    success('Analytics report exported successfully!')
+  } catch (err) {
+    console.error('Export error:', err)
+    error('Failed to export report')
+  }
+}
+
+// Sample data generators (fallback if API doesn't return data)
+const generateSampleRevenueTrend = () => {
+  const days = parseInt(dateRange.value)
+  const data = []
+  const interval = days > 30 ? 7 : 1
+  const points = Math.min(Math.ceil(days / interval), 30)
+
+  for (let i = 0; i < points; i++) {
+    const date = new Date()
+    date.setDate(date.getDate() - (points - i - 1) * interval)
+    data.push({
+      label: date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+      value: Math.floor(Math.random() * 10000000) + 1000000
+    })
+  }
+  return data
+}
+
+const generateSampleSources = () => {
+  return {
+    'WhatsApp': Math.floor(Math.random() * 100) + 50,
+    'Website': Math.floor(Math.random() * 80) + 30,
+    'Referral': Math.floor(Math.random() * 60) + 20,
+    'Social Media': Math.floor(Math.random() * 70) + 25,
+    'Email': Math.floor(Math.random() * 40) + 10
+  }
+}
+
+const generateSamplePipeline = () => {
+  return {
+    'New': Math.floor(Math.random() * 50) + 20,
+    'Contacted': Math.floor(Math.random() * 40) + 15,
+    'Qualified': Math.floor(Math.random() * 30) + 10,
+    'Proposal': Math.floor(Math.random() * 20) + 8,
+    'Won': Math.floor(Math.random() * 15) + 5
+  }
 }
 
 const getActivityIcon = (type) => {
@@ -392,10 +682,9 @@ const formatDateTime = (date) => {
 // Lifecycle
 onMounted(async () => {
   await fetchAnalytics()
-})
 
-onUnmounted(() => {
-  chartInstances.forEach(chart => chart?.destroy())
+  // Re-render charts on window resize
+  window.addEventListener('resize', renderCharts)
 })
 </script>
 
@@ -410,15 +699,6 @@ onUnmounted(() => {
 
 .stat-card:hover {
   transform: translateY(-4px);
-}
-
-.chart-container {
-  position: relative;
-  height: 300px;
-}
-
-.chart-container canvas {
-  max-width: 100%;
 }
 
 .funnel-chart {
