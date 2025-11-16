@@ -51,7 +51,8 @@ class WhatsAppController extends Controller
     public function sendMessage(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'lead_id' => 'required|exists:leads,id',
+            'lead_id' => 'required_without:to|exists:leads,id',
+            'to' => 'required_without:lead_id|string',
             'message' => 'required|string',
             'media_url' => 'nullable|url',
             'queue' => 'boolean'
@@ -61,7 +62,29 @@ class WhatsAppController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $lead = Lead::findOrFail($request->lead_id);
+        // Find or create lead
+        if ($request->has('lead_id')) {
+            $lead = Lead::findOrFail($request->lead_id);
+        } else {
+            // Find lead by phone number or create new one
+            $phone = $request->to;
+            $lead = Lead::where('whatsapp_number', $phone)
+                ->orWhere('phone', $phone)
+                ->first();
+
+            if (!$lead) {
+                // Create new lead with phone number
+                $lead = Lead::create([
+                    'name' => 'WhatsApp Lead ' . substr($phone, -4),
+                    'phone' => $phone,
+                    'whatsapp_number' => $phone,
+                    'source' => 'whatsapp',
+                    'status' => 'new',
+                    'score' => 0
+                ]);
+            }
+        }
+
         $phone = $lead->whatsapp_number ?? $lead->phone;
 
         if (!$phone) {
@@ -220,5 +243,40 @@ class WhatsAppController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function chats()
+    {
+        // Get all chats grouped by lead with last message and unread count
+        $chats = WhatsappMessage::selectRaw('
+                lead_id,
+                MAX(id) as last_message_id,
+                COUNT(CASE WHEN direction = "inbound" AND is_read = 0 THEN 1 END) as unread_count
+            ')
+            ->whereNotNull('lead_id')
+            ->groupBy('lead_id')
+            ->orderByRaw('MAX(created_at) DESC')
+            ->get()
+            ->map(function ($chat) {
+                $lastMessage = WhatsappMessage::with('lead')
+                    ->find($chat->last_message_id);
+
+                if (!$lastMessage || !$lastMessage->lead) {
+                    return null;
+                }
+
+                return [
+                    'id' => $lastMessage->lead->id,
+                    'lead_id' => $lastMessage->lead->id,
+                    'name' => $lastMessage->lead->name,
+                    'phone' => $lastMessage->lead->whatsapp_number ?? $lastMessage->lead->phone,
+                    'last_message' => $lastMessage->content,
+                    'last_message_at' => $lastMessage->created_at->toDateTimeString(),
+                    'unread_count' => $chat->unread_count
+                ];
+            })
+            ->filter();
+
+        return response()->json($chats->values());
     }
 }

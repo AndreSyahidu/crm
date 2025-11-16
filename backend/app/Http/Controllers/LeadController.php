@@ -323,4 +323,108 @@ class LeadController extends Controller
             'count' => count($request->lead_ids)
         ]);
     }
+
+    /**
+     * Get lead milestones
+     */
+    public function milestones($id)
+    {
+        $lead = Lead::findOrFail($id);
+
+        $milestones = JourneyMilestone::where('lead_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($milestones);
+    }
+
+    /**
+     * Store a new milestone for lead
+     */
+    public function storeMilestone(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'color' => 'nullable|string|max:7',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $lead = Lead::findOrFail($id);
+
+        $milestone = JourneyMilestone::create([
+            'lead_id' => $id,
+            'title' => $request->title,
+            'description' => $request->description,
+            'color' => $request->color ?? '#007bff',
+            'achieved_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Milestone added successfully',
+            'milestone' => $milestone
+        ], 201);
+    }
+
+    /**
+     * Get lead interactions
+     */
+    public function interactions($id)
+    {
+        $lead = Lead::findOrFail($id);
+
+        $interactions = Interaction::where('lead_id', $id)
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($interactions);
+    }
+
+    /**
+     * Convert lead to customer (won status)
+     */
+    public function convert(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'actual_revenue' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $lead = Lead::findOrFail($id);
+
+        // Update lead status to won
+        $lead->update([
+            'status' => 'won',
+            'actual_revenue' => $request->actual_revenue ?? $lead->expected_revenue,
+            'converted_at' => now(),
+            'notes' => $request->notes ?? $lead->notes,
+        ]);
+
+        // Log interaction
+        Interaction::create([
+            'lead_id' => $id,
+            'user_id' => auth()->id(),
+            'type' => 'status_change',
+            'subject' => 'Lead Converted to Customer',
+            'notes' => 'Lead successfully converted to customer with revenue: ' . ($request->actual_revenue ?? $lead->expected_revenue),
+            'metadata' => json_encode([
+                'old_status' => 'negotiation',
+                'new_status' => 'won',
+                'revenue' => $request->actual_revenue ?? $lead->expected_revenue
+            ]),
+        ]);
+
+        return response()->json([
+            'message' => 'Lead converted to customer successfully',
+            'lead' => $lead->fresh()
+        ]);
+    }
 }

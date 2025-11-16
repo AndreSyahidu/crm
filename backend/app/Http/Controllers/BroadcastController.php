@@ -130,6 +130,52 @@ class BroadcastController extends Controller
         ]);
     }
 
+    public function previewBySegment(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'segment_id' => 'nullable|exists:segments,id',
+            'segment_filter' => 'nullable|array',
+            'message' => 'required|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Get leads based on segment
+        $leads = collect();
+
+        if ($request->has('segment_id')) {
+            $segment = \App\Models\Segment::findOrFail($request->segment_id);
+            $leads = $segment->getLeads();
+        } elseif ($request->has('segment_filter')) {
+            // Apply custom filter
+            $query = Lead::query();
+
+            if (isset($request->segment_filter['status'])) {
+                $query->where('status', $request->segment_filter['status']);
+            }
+            if (isset($request->segment_filter['tags'])) {
+                $query->whereHas('tags', function ($q) use ($request) {
+                    $q->whereIn('tags.id', $request->segment_filter['tags']);
+                });
+            }
+            if (isset($request->segment_filter['source'])) {
+                $query->where('source', $request->segment_filter['source']);
+            }
+
+            $leads = $query->get();
+        } else {
+            $leads = Lead::all();
+        }
+
+        return response()->json([
+            'total_recipients' => $leads->count(),
+            'leads' => $leads->take(10),
+            'message' => $request->message
+        ]);
+    }
+
     public function start($id)
     {
         $campaign = BroadcastCampaign::findOrFail($id);

@@ -45,7 +45,7 @@
           <div class="col-md-3">
             <select v-model="filters.sort" class="form-select" @change="fetchPipeline">
               <option value="expected_close_date">Close Date</option>
-              <option value="expected_revenue">Value (High to Low)</option>
+              <option value="value">Value (High to Low)</option>
               <option value="created_at">Recently Added</option>
               <option value="last_contact_at">Last Contact</option>
             </select>
@@ -105,7 +105,7 @@
           >
             <div class="deal-header">
               <h6 class="deal-title mb-1">{{ deal.lead?.name || 'Unnamed Lead' }}</h6>
-              <span class="deal-value">Rp {{ formatCurrency(deal.expected_revenue) }}</span>
+              <span class="deal-value">Rp {{ formatCurrency(deal.value) }}</span>
             </div>
 
             <div class="deal-meta">
@@ -176,16 +176,16 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Pipeline Stage *</label>
-                  <select v-model="dealForm.pipeline_stage_id" class="form-select" required>
+                  <select v-model="dealForm.stage_id" class="form-select" required>
                     <option v-for="stage in stages" :key="stage.id" :value="stage.id">
                       {{ stage.name }}
                     </option>
                   </select>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Expected Revenue *</label>
+                  <label class="form-label">Value *</label>
                   <input
-                    v-model.number="dealForm.expected_revenue"
+                    v-model.number="dealForm.value"
                     type="number"
                     class="form-control"
                     required
@@ -272,8 +272,8 @@ const filters = ref({
 
 const dealForm = ref({
   lead_id: '',
-  pipeline_stage_id: '',
-  expected_revenue: 0,
+  stage_id: '',
+  value: 0,
   expected_close_date: '',
   assigned_to: '',
   probability: 0,
@@ -283,7 +283,7 @@ const dealForm = ref({
 // Computed
 const totalPipelineValue = computed(() => {
   return stages.value.reduce((total, stage) => {
-    const stageValue = stage.deals?.reduce((sum, deal) => sum + (deal.expected_revenue || 0), 0) || 0
+    const stageValue = stage.deals?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0
     return total + stageValue
   }, 0)
 })
@@ -330,7 +330,7 @@ const fetchAvailableLeads = async () => {
 const handleDragStart = (event, deal) => {
   event.dataTransfer.effectAllowed = 'move'
   event.dataTransfer.setData('dealId', deal.id)
-  event.dataTransfer.setData('currentStageId', deal.pipeline_stage_id)
+  event.dataTransfer.setData('currentStageId', deal.stage_id)
 }
 
 const handleDrop = async (event, newStageId) => {
@@ -342,7 +342,7 @@ const handleDrop = async (event, newStageId) => {
 
   try {
     await api.put(`/deals/${dealId}/move`, {
-      pipeline_stage_id: newStageId
+      stage_id: newStageId
     })
     await fetchPipeline()
   } catch (error) {
@@ -352,15 +352,15 @@ const handleDrop = async (event, newStageId) => {
 }
 
 const getStageValue = (stage) => {
-  return stage.deals?.reduce((sum, deal) => sum + (deal.expected_revenue || 0), 0) || 0
+  return stage.deals?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0
 }
 
 const showCreateDealModal = () => {
   editingDeal.value = null
   dealForm.value = {
     lead_id: '',
-    pipeline_stage_id: stages.value[0]?.id || '',
-    expected_revenue: 0,
+    stage_id: stages.value[0]?.id || '',
+    value: 0,
     expected_close_date: '',
     assigned_to: '',
     probability: stages.value[0]?.probability || 0,

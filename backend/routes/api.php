@@ -12,6 +12,9 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\SegmentController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\FollowUpSequenceController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\InteractionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +43,10 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/leads/{id}', [LeadController::class, 'destroy']);
     Route::post('/leads/{id}/update-score', [LeadController::class, 'updateScore']);
     Route::get('/leads/{id}/timeline', [LeadController::class, 'timeline']);
+    Route::get('/leads/{id}/milestones', [LeadController::class, 'milestones']);
+    Route::post('/leads/{id}/milestones', [LeadController::class, 'storeMilestone']);
+    Route::get('/leads/{id}/interactions', [LeadController::class, 'interactions']);
+    Route::post('/leads/{id}/convert', [LeadController::class, 'convert']);
     Route::post('/leads/bulk-assign', [LeadController::class, 'bulkAssign']);
     Route::post('/leads/bulk-tag', [LeadController::class, 'bulkTag']);
 
@@ -51,11 +58,14 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/deals/{id}', [DealController::class, 'update']);
     Route::delete('/deals/{id}', [DealController::class, 'destroy']);
     Route::post('/deals/{id}/move-stage', [DealController::class, 'moveStage']);
+    Route::put('/deals/{id}/move', [DealController::class, 'moveStage']); // Alias for move-stage
     Route::post('/deals/{id}/reorder', [DealController::class, 'reorder']);
+    Route::get('/pipeline/stages', [DealController::class, 'pipelineStages']);
 
     // WhatsApp
     Route::get('/whatsapp/status', [WhatsAppController::class, 'status']);
     Route::get('/whatsapp/qr', [WhatsAppController::class, 'getQR']);
+    Route::get('/whatsapp/chats', [WhatsAppController::class, 'chats']);
     Route::post('/whatsapp/send', [WhatsAppController::class, 'sendMessage'])
         ->middleware('throttle:30,1'); // Rate limit: 30 per minute
     Route::get('/whatsapp/leads/{id}/messages', [WhatsAppController::class, 'messages']);
@@ -72,6 +82,7 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/broadcasts/{id}', [BroadcastController::class, 'update']);
     Route::delete('/broadcasts/{id}', [BroadcastController::class, 'destroy']);
     Route::get('/broadcasts/{id}/preview', [BroadcastController::class, 'preview']);
+    Route::post('/broadcasts/preview-segment', [BroadcastController::class, 'previewBySegment']);
     Route::post('/broadcasts/{id}/start', [BroadcastController::class, 'start']);
     Route::post('/broadcasts/{id}/pause', [BroadcastController::class, 'pause']);
     Route::post('/broadcasts/{id}/resume', [BroadcastController::class, 'resume']);
@@ -123,6 +134,26 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/analytics/top-leads', [AnalyticsController::class, 'topLeads']);
     Route::get('/analytics/lost-deals-reasons', [AnalyticsController::class, 'lostDealsReasons']);
     Route::get('/analytics/export', [AnalyticsController::class, 'export']);
+
+    // Follow-up Sequences
+    Route::resource('followup-sequences', FollowUpSequenceController::class);
+    Route::post('/followup-sequences/{id}/toggle', [FollowUpSequenceController::class, 'toggleActive']);
+    Route::post('/followup-sequences/{id}/enroll', [FollowUpSequenceController::class, 'enroll']);
+    Route::post('/followup-sequences/{id}/unenroll', [FollowUpSequenceController::class, 'unenroll']);
+    Route::get('/followup-sequences/{id}/stats', [FollowUpSequenceController::class, 'stats']);
+
+    // Settings
+    Route::get('/settings', [SettingsController::class, 'index']);
+    Route::put('/settings/general', [SettingsController::class, 'updateGeneral']);
+    Route::put('/settings/whatsapp', [SettingsController::class, 'updateWhatsApp']);
+    Route::put('/settings/email', [SettingsController::class, 'updateEmail']);
+    Route::post('/settings/clear-cache', [SettingsController::class, 'clearCache']);
+    Route::get('/settings/logs', [SettingsController::class, 'logs']);
+    Route::delete('/settings/logs', [SettingsController::class, 'clearLogs']);
+    Route::post('/settings/reset-demo', [SettingsController::class, 'resetDemo']);
+
+    // Interactions
+    Route::resource('interactions', InteractionController::class);
 
 });
 

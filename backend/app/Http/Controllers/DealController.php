@@ -208,4 +208,29 @@ class DealController extends Controller
             'deal' => $deal
         ]);
     }
+
+    public function pipelineStages(Request $request)
+    {
+        $stages = PipelineStage::active()
+            ->ordered()
+            ->with(['deals' => function ($q) use ($request) {
+                $q->with(['lead', 'assignedUser'])
+                  ->orderBy('position_in_stage');
+
+                // Apply filters if provided
+                if ($request->has('search') && $request->search) {
+                    $q->whereHas('lead', function ($leadQuery) use ($request) {
+                        $leadQuery->where('name', 'like', '%' . $request->search . '%')
+                            ->orWhere('company', 'like', '%' . $request->search . '%');
+                    });
+                }
+
+                if ($request->has('assigned_to') && $request->assigned_to) {
+                    $q->where('assigned_to', $request->assigned_to);
+                }
+            }])
+            ->get();
+
+        return response()->json($stages);
+    }
 }
